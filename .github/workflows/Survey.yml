@@ -1,0 +1,35 @@
+name: Process Survey Submission
+on:
+  repository_dispatch:
+    types: [submit-survey]  # 自定义事件类型
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Survey Issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ACTION_TOKEN }}
+          script: |
+            // 解析前端发送的数据
+            const payload = JSON.parse('${{ toJson(github.event.client_payload) }}');
+            
+            // 创建结构化Issue内容
+            const issueBody = `
+            **提交时间**: ${new Date().toISOString()}
+            **姓名**: ${payload.name}
+            **邮箱**: ||${payload.email}||  <!-- 隐藏敏感信息 -->
+            **评分**: ${payload.rating}/5
+            **建议**:
+            ${payload.comments || '无'}
+            `;
+            
+            // 创建Issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `问卷提交 - ${payload.name}`,
+              body: issueBody,
+              labels: ['survey']
+            });
